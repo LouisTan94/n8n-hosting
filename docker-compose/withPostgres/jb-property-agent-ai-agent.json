@@ -1,0 +1,138 @@
+{
+    "name": "JB Property Agent - AI Agent Version",
+    "nodes": [
+        {
+            "parameters": {},
+            "id": "telegram-trigger",
+            "name": "Telegram Webhook",
+            "type": "n8n-nodes-base.telegramTrigger",
+            "typeVersion": 1.1,
+            "position": [
+                0,
+                0
+            ],
+            "credentials": {
+                "telegramApi": {
+                    "id": "YOUR_TELEGRAM_CREDENTIALS_ID",
+                    "name": "Telegram account"
+                }
+            }
+        },
+        {
+            "parameters": {
+                "options": {
+                    "systemMessage": "=You are a top-tier Property Agent in Johor Bahru, Malaysia. \n\nYour goal is to help customers find their dream property by guiding them through a decision tree of questions to narrow down their preferences.\n\n### Your Decision Flow:\n1. **Greeting & Intent:** Welcome them warmly. Determine if they are looking to Buy, Rent, or Sell.\n2. **Budget:** Gently ask for their budget range.\n3. **Location:** Ask which area in JB they prefer (e.g., Near CIQ, Mount Austin, Iskandar Puteri).\n4. **Type:** Ask if they want Condo, Landed, or Commercial.\n5. **Recommendation:** Based on their answers, recommend specific areas or general property types from your knowledge.\n\n### Knowledge Base (JB Context):\n- **Bukit Chagar:** RTS Link station, high potential.\n- **R&F Princess Cove:** Walking distance to CIQ to Singapore.\n- **Mount Austin:** Lifestyle hub, cafes, bubble tea, younger crowd.\n- **Iskandar Puteri:** Near Legoland, spacious, expats.\n\n### Rules:\n- Be polite and professional.\n- Keep answers concise (Telegram style).\n- If you don't know something, offer to check with your manager rather than lying."
+                }
+            },
+            "id": "ai-agent",
+            "name": "AI Agent",
+            "type": "@n8n/n8n-nodes-langchain.agent",
+            "typeVersion": 1.6,
+            "position": [
+                220,
+                0
+            ],
+            "credentials": {}
+        },
+        {
+            "parameters": {
+                "modelName": "models/gemini-1.5-pro",
+                "options": {}
+            },
+            "id": "google-gemini-model",
+            "name": "Google Gemini Chat Model",
+            "type": "@n8n/n8n-nodes-langchain.lmChatGoogleGemini",
+            "typeVersion": 1,
+            "position": [
+                220,
+                220
+            ],
+            "credentials": {
+                "googleGeminiApi": {
+                    "id": "YOUR_GEMINI_CREDENTIALS_ID",
+                    "name": "Google Gemini account"
+                }
+            }
+        },
+        {
+            "parameters": {
+                "sessionId": "={{ $('Telegram Webhook').item.json.message.chat.id }}",
+                "contextWindowLength": 10
+            },
+            "id": "window-memory",
+            "name": "Window Buffer Memory",
+            "type": "@n8n/n8n-nodes-langchain.memoryBufferWindow",
+            "typeVersion": 1,
+            "position": [
+                360,
+                220
+            ]
+        },
+        {
+            "parameters": {
+                "chatId": "={{ $('Telegram Webhook').item.json.message.chat.id }}",
+                "text": "={{ $json.output }}"
+            },
+            "id": "send-telegram",
+            "name": "Send Replay",
+            "type": "n8n-nodes-base.telegram",
+            "typeVersion": 1.1,
+            "position": [
+                580,
+                0
+            ],
+            "credentials": {
+                "telegramApi": {
+                    "id": "YOUR_TELEGRAM_CREDENTIALS_ID",
+                    "name": "Telegram account"
+                }
+            }
+        }
+    ],
+    "connections": {
+        "Telegram Webhook": {
+            "main": [
+                [
+                    {
+                        "node": "AI Agent",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Google Gemini Chat Model": {
+            "ai_language_model": [
+                [
+                    {
+                        "node": "AI Agent",
+                        "type": "ai_language_model",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Window Buffer Memory": {
+            "ai_memory": [
+                [
+                    {
+                        "node": "AI Agent",
+                        "type": "ai_memory",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "AI Agent": {
+            "main": [
+                [
+                    {
+                        "node": "Send Replay",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        }
+    }
+}

@@ -1,0 +1,194 @@
+{
+    "name": "JB Property Agent Automation",
+    "nodes": [
+        {
+            "parameters": {},
+            "id": "webhook-trigger",
+            "name": "Telegram Webhook",
+            "type": "n8n-nodes-base.telegramTrigger",
+            "typeVersion": 1.1,
+            "position": [
+                100,
+                300
+            ],
+            "credentials": {
+                "telegramApi": {
+                    "id": "YOUR_TELEGRAM_CREDENTIALS_ID",
+                    "name": "Telegram account"
+                }
+            }
+        },
+        {
+            "parameters": {
+                "operation": "executeQuery",
+                "query": "SELECT * FROM customers WHERE customer_id = $1",
+                "additionalFields": {
+                    "queryParams": "={{ $json.message.from.id }}"
+                }
+            },
+            "id": "check-customer",
+            "name": "Check Customer Exists",
+            "type": "n8n-nodes-base.postgres",
+            "typeVersion": 1,
+            "position": [
+                300,
+                300
+            ],
+            "credentials": {
+                "postgres": {
+                    "id": "YOUR_POSTGRES_CREDENTIALS_ID",
+                    "name": "Postgres account"
+                }
+            }
+        },
+        {
+            "parameters": {
+                "conditions": {
+                    "boolean": [
+                        {
+                            "value1": "={{ $json.id }}",
+                            "operation": "notEqual",
+                            "value2": ""
+                        }
+                    ]
+                }
+            },
+            "id": "if-customer-exists",
+            "name": "If Customer Exists",
+            "type": "n8n-nodes-base.if",
+            "typeVersion": 1,
+            "position": [
+                500,
+                300
+            ]
+        },
+        {
+            "parameters": {
+                "operation": "executeQuery",
+                "query": "INSERT INTO customers (customer_id, platform, first_name, username) VALUES ($1, 'telegram', $2, $3) RETURNING *;",
+                "additionalFields": {
+                    "queryParams": "={{ $('Telegram Webhook').item.json.message.from.id }}, {{ $('Telegram Webhook').item.json.message.from.first_name }}, {{ $('Telegram Webhook').item.json.message.from.username }}"
+                }
+            },
+            "id": "create-customer",
+            "name": "Create Customer",
+            "type": "n8n-nodes-base.postgres",
+            "typeVersion": 1,
+            "position": [
+                700,
+                400
+            ],
+            "credentials": {
+                "postgres": {
+                    "id": "YOUR_POSTGRES_CREDENTIALS_ID",
+                    "name": "Postgres account"
+                }
+            }
+        },
+        {
+            "parameters": {
+                "modelId": "gemini-pro",
+                "prompt": "=You are a helpful property agent in Johor Bahru. \nUser: {{ $('Telegram Webhook').item.json.message.text }}\n\nIdentify the user's intent.",
+                "options": {}
+            },
+            "id": "google-gemini",
+            "name": "Google Gemini",
+            "type": "n8n-nodes-base.googleGemini",
+            "typeVersion": 1,
+            "position": [
+                900,
+                300
+            ],
+            "credentials": {
+                "googleGeminiApi": {
+                    "id": "YOUR_GEMINI_CREDENTIALS_ID",
+                    "name": "Google Gemini account"
+                }
+            }
+        },
+        {
+            "parameters": {
+                "chatId": "={{ $('Telegram Webhook').item.json.message.chat.id }}",
+                "text": "={{ $json.text }}"
+            },
+            "id": "send-telegram",
+            "name": "Send Reply",
+            "type": "n8n-nodes-base.telegram",
+            "typeVersion": 1.1,
+            "position": [
+                1100,
+                300
+            ],
+            "credentials": {
+                "telegramApi": {
+                    "id": "YOUR_TELEGRAM_CREDENTIALS_ID",
+                    "name": "Telegram account"
+                }
+            }
+        }
+    ],
+    "connections": {
+        "Telegram Webhook": {
+            "main": [
+                [
+                    {
+                        "node": "Check Customer Exists",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Check Customer Exists": {
+            "main": [
+                [
+                    {
+                        "node": "If Customer Exists",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "If Customer Exists": {
+            "main": [
+                [
+                    {
+                        "node": "Google Gemini",
+                        "type": "main",
+                        "index": 0
+                    }
+                ],
+                [
+                    {
+                        "node": "Create Customer",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Create Customer": {
+            "main": [
+                [
+                    {
+                        "node": "Google Gemini",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Google Gemini": {
+            "main": [
+                [
+                    {
+                        "node": "Send Reply",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        }
+    }
+}

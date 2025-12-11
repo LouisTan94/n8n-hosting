@@ -1,0 +1,70 @@
+{
+    "test_webhooks": [
+        {
+            "description": "New customer saying hi",
+            "payload": {
+                "update_id": 10001,
+                "message": {
+                    "message_id": 1,
+                    "from": {
+                        "id": 123456789,
+                        "is_bot": false,
+                        "first_name": "John",
+                        "last_name": "Doe",
+                        "username": "johndoe",
+                        "language_code": "en"
+                    },
+                    "chat": {
+                        "id": 123456789,
+                        "first_name": "John",
+                        "last_name": "Doe",
+                        "username": "johndoe",
+                        "type": "private"
+                    },
+                    "date": 1678886400,
+                    "text": "Hi, I'm looking for a property in JB."
+                }
+            }
+        },
+        {
+            "description": "Customer specifying budget and location",
+            "payload": {
+                "update_id": 10002,
+                "message": {
+                    "message_id": 2,
+                    "from": {
+                        "id": 123456789,
+                        "first_name": "John",
+                        "last_name": "Doe"
+                    },
+                    "chat": {
+                        "id": 123456789,
+                        "type": "private"
+                    },
+                    "date": 1678886500,
+                    "text": "My budget is around RM 500k, preferably near CIQ."
+                }
+            }
+        },
+        {
+            "description": "Asking about specific condo price",
+            "payload": {
+                "update_id": 10003,
+                "message": {
+                    "message_id": 5,
+                    "from": {
+                        "id": 987654321,
+                        "first_name": "Sarah",
+                        "username": "sarahlim"
+                    },
+                    "chat": {
+                        "id": 987654321,
+                        "type": "private"
+                    },
+                    "date": 1678890000,
+                    "text": "How much is a 2-bedroom unit at R&F Princess Cove?"
+                }
+            }
+        }
+    ]
+}

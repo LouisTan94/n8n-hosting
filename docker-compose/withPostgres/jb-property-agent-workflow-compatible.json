@@ -1,0 +1,206 @@
+{
+    "name": "JB Property Agent Automation (Compatible)",
+    "nodes": [
+        {
+            "parameters": {},
+            "id": "webhook-trigger",
+            "name": "Telegram Webhook",
+            "type": "n8n-nodes-base.telegramTrigger",
+            "typeVersion": 1.1,
+            "position": [
+                100,
+                300
+            ],
+            "credentials": {
+                "telegramApi": {
+                    "id": "YOUR_TELEGRAM_CREDENTIALS_ID",
+                    "name": "Telegram account"
+                }
+            }
+        },
+        {
+            "parameters": {
+                "operation": "executeQuery",
+                "query": "SELECT * FROM customers WHERE customer_id = $1",
+                "additionalFields": {
+                    "queryParams": "={{ $json.message.from.id }}"
+                }
+            },
+            "id": "check-customer",
+            "name": "Check Customer Exists",
+            "type": "n8n-nodes-base.postgres",
+            "typeVersion": 1,
+            "position": [
+                300,
+                300
+            ],
+            "credentials": {
+                "postgres": {
+                    "id": "YOUR_POSTGRES_CREDENTIALS_ID",
+                    "name": "Postgres account"
+                }
+            }
+        },
+        {
+            "parameters": {
+                "conditions": {
+                    "boolean": [
+                        {
+                            "value1": "={{ $json.id }}",
+                            "operation": "notEqual",
+                            "value2": ""
+                        }
+                    ]
+                }
+            },
+            "id": "if-customer-exists",
+            "name": "If Customer Exists",
+            "type": "n8n-nodes-base.if",
+            "typeVersion": 1,
+            "position": [
+                500,
+                300
+            ]
+        },
+        {
+            "parameters": {
+                "operation": "executeQuery",
+                "query": "INSERT INTO customers (customer_id, platform, first_name, username) VALUES ($1, 'telegram', $2, $3) RETURNING *;",
+                "additionalFields": {
+                    "queryParams": "={{ $('Telegram Webhook').item.json.message.from.id }}, {{ $('Telegram Webhook').item.json.message.from.first_name }}, {{ $('Telegram Webhook').item.json.message.from.username }}"
+                }
+            },
+            "id": "create-customer",
+            "name": "Create Customer",
+            "type": "n8n-nodes-base.postgres",
+            "typeVersion": 1,
+            "position": [
+                700,
+                400
+            ],
+            "credentials": {
+                "postgres": {
+                    "id": "YOUR_POSTGRES_CREDENTIALS_ID",
+                    "name": "Postgres account"
+                }
+            }
+        },
+        {
+            "parameters": {
+                "method": "POST",
+                "url": "https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent",
+                "sendQuery": true,
+                "queryParameters": {
+                    "parameters": [
+                        {
+                            "name": "key",
+                            "value": "YOUR_GEMINI_API_KEY_HERE"
+                        }
+                    ]
+                },
+                "sendBody": true,
+                "bodyParameters": {
+                    "parameters": [
+                        {
+                            "name": "contents",
+                            "value": "={{ [ { \"parts\": [ { \"text\": \"You are a helpful property agent in Johor Bahru. \\nUser: \" + $('Telegram Webhook').item.json.message.text + \"\\n\\nIdentify the user's intent.\" } ] } ] }}"
+                        }
+                    ]
+                },
+                "options": {}
+            },
+            "id": "google-gemini-http",
+            "name": "Google Gemini (HTTP)",
+            "type": "n8n-nodes-base.httpRequest",
+            "typeVersion": 4.1,
+            "position": [
+                900,
+                300
+            ]
+        },
+        {
+            "parameters": {
+                "chatId": "={{ $('Telegram Webhook').item.json.message.chat.id }}",
+                "text": "={{ $json.candidates[0].content.parts[0].text }}"
+            },
+            "id": "send-telegram",
+            "name": "Send Reply",
+            "type": "n8n-nodes-base.telegram",
+            "typeVersion": 1.1,
+            "position": [
+                1100,
+                300
+            ],
+            "credentials": {
+                "telegramApi": {
+                    "id": "YOUR_TELEGRAM_CREDENTIALS_ID",
+                    "name": "Telegram account"
+                }
+            }
+        }
+    ],
+    "connections": {
+        "Telegram Webhook": {
+            "main": [
+                [
+                    {
+                        "node": "Check Customer Exists",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Check Customer Exists": {
+            "main": [
+                [
+                    {
+                        "node": "If Customer Exists",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "If Customer Exists": {
+            "main": [
+                [
+                    {
+                        "node": "Google Gemini (HTTP)",
+                        "type": "main",
+                        "index": 0
+                    }
+                ],
+                [
+                    {
+                        "node": "Create Customer",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Create Customer": {
+            "main": [
+                [
+                    {
+                        "node": "Google Gemini (HTTP)",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Google Gemini (HTTP)": {
+            "main": [
+                [
+                    {
+                        "node": "Send Reply",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        }
+    }
+}
