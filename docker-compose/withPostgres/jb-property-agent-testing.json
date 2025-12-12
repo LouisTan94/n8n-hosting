@@ -1,29 +1,28 @@
 {
-    "name": "JB Property Agent Automation (Compatible)",
+    "name": "JB Property Agent - LOGIC TESTING",
     "nodes": [
         {
-            "parameters": {},
-            "id": "webhook-trigger",
-            "name": "Telegram Webhook",
-            "type": "n8n-nodes-base.telegramTrigger",
-            "typeVersion": 1.1,
+            "parameters": {
+                "httpMethod": "POST",
+                "path": "test_webhook",
+                "options": {}
+            },
+            "id": "generic-webhook",
+            "name": "Generic Webhook",
+            "type": "n8n-nodes-base.webhook",
+            "typeVersion": 1,
             "position": [
                 100,
                 300
             ],
-            "credentials": {
-                "telegramApi": {
-                    "id": "YOUR_TELEGRAM_CREDENTIALS_ID",
-                    "name": "Telegram account"
-                }
-            }
+            "webhookId": "test_webhook_id_123"
         },
         {
             "parameters": {
                 "operation": "executeQuery",
                 "query": "SELECT * FROM customers WHERE customer_id = $1",
                 "additionalFields": {
-                    "queryParams": "={{ $json.message.from.id.toString() }}"
+                    "queryParams": "={{ $json.body.message.from.id.toString() }}"
                 }
             },
             "id": "check-customer",
@@ -47,8 +46,9 @@
                 "conditions": {
                     "boolean": [
                         {
-                            "value1": "={{ $json.customer_id }}",
-                            "operation": "isNotEmpty"
+                            "value1": "={{ $json.id }}",
+                            "operation": "notEqual",
+                            "value2": ""
                         }
                     ]
                 }
@@ -64,9 +64,10 @@
         },
         {
             "parameters": {
-                "query": "INSERT INTO customers (customer_id, platform, first_name, username) VALUES ($1, 'telegram', $2, $3) ON CONFLICT (customer_id) DO NOTHING RETURNING *;",
+                "operation": "executeQuery",
+                "query": "INSERT INTO customers (customer_id, platform, first_name, username) VALUES ($1, 'telegram', $2, $3) RETURNING *;",
                 "additionalFields": {
-                    "queryParams": "={{ $node[\"Telegram Webhook\"].json.message.from.id.toString() }}, {{ $node[\"Telegram Webhook\"].json.message.from.first_name || 'Guest' }}, {{ $node[\"Telegram Webhook\"].json.message.from.username || 'NoUser' }}"
+                    "queryParams": "={{ $('Generic Webhook').item.json.body.message.from.id.toString() }}, {{ $('Generic Webhook').item.json.body.message.from.first_name }}, {{ $('Generic Webhook').item.json.body.message.from.username }}"
                 }
             },
             "id": "create-customer",
@@ -102,7 +103,7 @@
                     "parameters": [
                         {
                             "name": "contents",
-                            "value": "={{ [ { \"parts\": [ { \"text\": \"You are a helpful property agent in Johor Bahru. \\nUser: \" + $('Telegram Webhook').item.json.message.text + \"\\n\\nIdentify the user's intent.\" } ] } ] }}"
+                            "value": "={{ [ { \"parts\": [ { \"text\": \"You are a helpful property agent in Johor Bahru. \\nUser: \" + $('Generic Webhook').item.json.body.message.text + \"\\n\\nIdentify the user's intent.\" } ] } ] }}"
                         }
                     ]
                 },
@@ -119,7 +120,7 @@
         },
         {
             "parameters": {
-                "chatId": "={{ $('Telegram Webhook').item.json.message.chat.id }}",
+                "chatId": "={{ $('Generic Webhook').item.json.body.message.chat.id }}",
                 "text": "={{ $json.candidates[0].content.parts[0].text }}"
             },
             "id": "send-telegram",
@@ -139,7 +140,7 @@
         }
     ],
     "connections": {
-        "Telegram Webhook": {
+        "Generic Webhook": {
             "main": [
                 [
                     {

@@ -1,0 +1,241 @@
+# Property Agent Customer Request Automation Workflow
+
+This workflow automates customer inquiry handling from Telegram and WhatsApp, processes requests using AI/ML tools, and generates intelligent responses based on customer preferences for Johor Bahru property agents.
+
+## User Review Required
+
+> [!IMPORTANT]
+> **AI Service Selection**: This workflow can integrate with multiple AI providers (OpenAI, Anthropic Claude, Google Gemini, or local LLM). Please confirm which AI service you'd like to use and provide API credentials.
+
+> [!IMPORTANT]
+> **Messaging Platform Setup**: You'll need to set up bot tokens for:
+> - **Telegram**: Create a bot via @BotFather and obtain the bot token
+> - **WhatsApp**: Requires WhatsApp Business API (via Twilio, 360Dialog, or Meta Cloud API)
+> 
+> Please confirm which platform(s) you want to prioritize.
+
+> [!NOTE]
+> **Database Storage**: Customer data, preferences, and conversation history should be stored. The workflow assumes you have PostgreSQL available (based on your n8n setup). Confirm if you want to use this or another database.
+
+## Proposed Changes
+
+### Workflow Architecture
+
+```mermaid
+graph TB
+    A[Telegram/WhatsApp Message] --> B[Webhook Trigger]
+    B --> C{Message Type}
+    C -->|Text Query| D[Extract Customer Info]
+    C -->|Location| E[Process Location Data]
+    C -->|Media| F[Handle Media Files]
+    
+    D --> G[Store in Database]
+    E --> G
+    F --> G
+    
+    G --> H[Load Customer Profile]
+    H --> I[Analyze Intent with AI]
+    
+    I --> J{Intent Category}
+    J -->|Property Search| K[Property Search Flow]
+    J -->|Pricing Query| L[Pricing Analysis Flow]
+    J -->|Area Info| M[Location Info Flow]
+    J -->|General Question| N[General Support Flow]
+    
+    K --> O[Generate Decision Tree]
+    L --> O
+    M --> O
+    N --> O
+    
+    O --> P[AI Response Generation]
+    P --> Q[Personalize Based on Preferences]
+    Q --> R[Format Response]
+    R --> S[Send to Customer]
+    S --> T[Update Conversation History]
+```
+
+### Component 1: Message Reception & Preprocessing
+
+#### [NEW] [telegram-webhook.json](file:///C:/Users/kaisian/.gemini/antigravity/brain/3c1c8613-c0c1-43cb-8dca-f94cbd18beff/workflow-components/telegram-webhook.json)
+- Telegram webhook trigger node
+- Message parser to extract text, sender info, and metadata
+- Initial validation and sanitization
+
+#### [NEW] [whatsapp-webhook.json](file:///C:/Users/kaisian/.gemini/antigravity/brain/3c1c8613-c0c1-43cb-8dca-f94cbd18beff/workflow-components/whatsapp-webhook.json)
+- WhatsApp webhook trigger (via Twilio/360Dialog)
+- Similar parsing logic for WhatsApp message format
+- Media handling for images/videos of properties
+
+---
+
+### Component 2: Customer Data Management
+
+#### [NEW] [customer-database-schema.sql](file:///C:/Users/kaisian/.gemini/antigravity/brain/3c1c8613-c0c1-43cb-8dca-f94cbd18beff/database/customer-schema.sql)
+Database schema for storing:
+- Customer profiles (phone, name, preferences)
+- Conversation history
+- Property preferences (budget, location, property type)
+- Interaction timestamps
+
+#### [NEW] [customer-profile-manager.json](file:///C:/Users/kaisian/.gemini/antigravity/brain/3c1c8613-c0c1-43cb-8dca-f94cbd18beff/workflow-components/customer-profile-manager.json)
+- PostgreSQL nodes to check if customer exists
+- Create or update customer profile
+- Load preference history for context
+
+---
+
+### Component 3: AI Intent Analysis & Decision Tree
+
+#### [NEW] [intent-classifier.json](file:///C:/Users/kaisian/.gemini/antigravity/brain/3c1c8613-c0c1-43cb-8dca-f94cbd18beff/workflow-components/intent-classifier.json)
+Uses AI to classify customer intent into categories:
+- **Property Search** (looking for specific property)
+- **Pricing Query** (asking about prices/market rates)
+- **Location Information** (schools, amenities, transport in JB)
+- **Viewing Appointment** (requesting property tour)
+- **Investment Advice** (ROI, rental yield questions)
+- **General Support** (other questions)
+
+#### [NEW] [decision-tree-generator.json](file:///C:/Users/kaisian/.gemini/antigravity/brain/3c1c8613-c0c1-43cb-8dca-f94cbd18beff/workflow-components/decision-tree-generator.json)
+Dynamic decision tree based on intent and preferences:
+- Creates conversation flow paths
+- Considers customer's budget, location preference, property type
+- Adapts based on previous interactions
+- Uses AI to generate contextual follow-up questions
+
+**Decision Tree Example for Property Search:**
+```mermaid
+graph TD
+    A[Property Search Intent] --> B{Budget Known?}
+    B -->|Yes| C{Location Preference?}
+    B -->|No| D[Ask Budget Range]
+    D --> C
+    
+    C -->|Specific Area| E{Property Type?}
+    C -->|Flexible| F[Show JB Areas]
+    F --> E
+    
+    E -->|Condo| G[Filter Condos in Area]
+    E -->|Landed| H[Filter Landed Properties]
+    E -->|Commercial| I[Filter Commercial]
+    
+    G --> J[Present Top Matches]
+    H --> J
+    I --> J
+    
+    J --> K{Customer Interested?}
+    K -->|Yes| L[Provide Details + Schedule Viewing]
+    K -->|No| M[Refine Criteria]
+    M --> A
+```
+
+---
+
+### Component 4: Johor Bahru Knowledge Base
+
+#### [NEW] [jb-knowledge-base.json](file:///C:/Users/kaisian/.gemini/antigravity/brain/3c1c8613-c0c1-43cb-8dca-f94cbd18beff/data/jb-knowledge-base.json)
+Structured data about Johor Bahru:
+- **Popular areas**: Danga Bay, Medini, Nusa Bestari, Taman Molek, etc.
+- **Proximity to Singapore** (CIQ checkpoints, commute times)
+- **Amenities**: Schools, hospitals, shopping malls
+- **Infrastructure**: RTS Link, MRT plans, highways
+- **Market insights**: Price ranges per area, growth trends
+
+#### [NEW] [property-data-integration.json](file:///C:/Users/kaisian/.gemini/antigravity/brain/3c1c8613-c0c1-43cb-8dca-f94cbd18beff/workflow-components/property-data-integration.json)
+- Integration with property listings (if you have a database or API)
+- Fallback to general market knowledge if no specific listings
+- Real-time price estimation based on area and property type
+
+---
+
+### Component 5: AI Response Generation
+
+#### [NEW] [ai-response-generator.json](file:///C:/Users/kaisian/.gemini/antigravity/brain/3c1c8613-c0c1-43cb-8dca-f94cbd18beff/workflow-components/ai-response-generator.json)
+- Uses LLM to generate natural, helpful responses
+- Includes Johor Bahru context in prompts
+- Personalizes based on customer's language preference and history
+- Formats responses with property details, images, links
+
+**AI Prompt Template:**
+```
+You are a knowledgeable property agent specializing in Johor Bahru properties. 
+
+Customer Profile:
+- Name: {customer_name}
+- Budget: {budget_range}
+- Preferences: {property_preferences}
+- Previous interactions: {conversation_summary}
+
+Current Query: {customer_message}
+Intent: {classified_intent}
+
+Context about Johor Bahru:
+{jb_knowledge_base_relevant_section}
+
+Respond professionally and helpfully. If suggesting properties, mention:
+- Location advantages (proximity to Singapore, amenities)
+- Price range and value proposition
+- Suitable property types
+- Next steps (viewing, more information)
+```
+
+---
+
+### Component 6: Response Delivery
+
+#### [NEW] [message-sender.json](file:///C:/Users/kaisian/.gemini/antigravity/brain/3c1c8613-c0c1-43cb-8dca-f94cbd18beff/workflow-components/message-sender.json)
+- Send formatted response back via Telegram/WhatsApp
+- Include images, location maps if relevant
+- Add quick reply buttons for common follow-ups
+- Log sent messages to database
+
+---
+
+### Component 7: Complete n8n Workflow
+
+#### [NEW] [jb-property-agent-workflow.json](file:///C:/Users/kaisian/.gemini/antigravity/brain/3c1c8613-c0c1-43cb-8dca-f94cbd18beff/jb-property-agent-workflow.json)
+The main n8n workflow file that combines all components:
+- Webhook triggers for both platforms
+- Complete flow from message receipt to response
+- Error handling and fallback responses
+- Analytics tracking (response time, customer satisfaction)
+
+---
+
+### Supporting Documentation
+
+#### [NEW] [setup-guide.md](file:///C:/Users/kaisian/.gemini/antigravity/brain/3c1c8613-c0c1-43cb-8dca-f94cbd18beff/setup-guide.md)
+Step-by-step instructions for:
+1. Setting up Telegram bot
+2. Configuring WhatsApp Business API
+3. Creating database tables
+4. Deploying the workflow to n8n
+5. Configuring AI API credentials
+6. Testing the workflow
+
+#### [NEW] [configuration-examples.md](file:///C:/Users/kaisian/.gemini/antigravity/brain/3c1c8613-c0c1-43cb-8dca-f94cbd18beff/configuration-examples.md)
+- Environment variables needed
+- Sample API responses
+- Example customer conversations
+- Common issues and troubleshooting
+
+## Verification Plan
+
+### Automated Tests
+- Test message parsing from both platforms
+- Validate intent classification accuracy
+- Verify database operations (CRUD)
+- Test AI response generation with sample queries
+
+### Manual Verification
+1. Send test messages via Telegram with different intents
+2. Verify correct decision tree paths are triggered
+3. Check response quality and personalization
+4. Validate that customer preferences are stored and used
+5. Test WhatsApp integration if configured
+6. Review conversation logs in database
+
+### Performance Validation
+- Response time should be under 5 seconds
+- AI responses should be contextually relevant to Johor Bahru
+- Decision tree should adapt based on customer responses
+- No duplicate or lost messages
